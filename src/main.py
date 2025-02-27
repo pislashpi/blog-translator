@@ -39,6 +39,10 @@ def main():
         logger.info("No new articles found, exiting")
         return
     
+    # 記事を古い順に並び替え（投稿日時の昇順）
+    new_articles.sort(key=lambda x: x['published'])
+    logger.info("Articles sorted by publication date (oldest first)")
+    
     # スクレイパーの初期化
     scraper = ArticleScraper()
     
