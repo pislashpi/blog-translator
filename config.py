@@ -40,6 +40,6 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 # 翻訳APIのモデル設定
-GEMINI_MODEL = "gemini-2.0-flash-lite-exp"
+GEMINI_MODEL = "gemini-2.0-flash-exp"
 OPENAI_MODEL = "gpt-4o"
 ANTHROPIC_MODEL = "claude-3-sonnet-20240229"
