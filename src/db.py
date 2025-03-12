@@ -1,6 +1,6 @@
 import sqlite3
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
 import os
 
@@ -31,6 +31,14 @@ class ArticleDatabase:
             blog_name TEXT,
             processed_date TEXT,
             wp_post_id INTEGER
+        )
+        ''')
+        
+        # system_infoテーブルを作成（存在しない場合）
+        c.execute('''
+        CREATE TABLE IF NOT EXISTS system_info (
+            key TEXT PRIMARY KEY,
+            value TEXT
         )
         ''')
         
@@ -75,6 +83,9 @@ class ArticleDatabase:
             (article_url, blog_name, now, wp_post_id)
         )
         
+        # 最終実行時刻を更新
+        self.update_last_run_time()
+        
         conn.commit()
         conn.close()
         logger.info(f"Marked article as processed: {article_url}, wp_post_id: {wp_post_id}")
@@ -102,3 +113,70 @@ class ArticleDatabase:
         
         conn.close()
         return articles
+    
+    def update_last_run_time(self, custom_time: str = None) -> None:
+        """
+        最終実行時刻を更新
+        
+        Args:
+            custom_time: カスタム時刻（Noneの場合は現在時刻）
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        now = custom_time or datetime.now().isoformat()
+        
+        c.execute(
+            "INSERT OR REPLACE INTO system_info (key, value) VALUES (?, ?)",
+            ("last_run_time", now)
+        )
+        
+        conn.commit()
+        conn.close()
+        logger.info(f"Updated last run time: {now}")
+    
+    def get_last_run_time(self) -> Optional[datetime]:
+        """
+        最終実行時刻を取得
+        
+        Returns:
+            最終実行時刻（datetime）、存在しない場合はNone
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        c.execute("SELECT value FROM system_info WHERE key = ?", ("last_run_time",))
+        result = c.fetchone()
+        
+        conn.close()
+        
+        if result:
+            try:
+                return datetime.fromisoformat(result[0])
+            except ValueError:
+                logger.error(f"Invalid datetime format in database: {result[0]}")
+                return None
+        return None
+    
+    def get_last_processed_date(self) -> Optional[datetime]:
+        """
+        最後に処理した記事の日時を取得
+        
+        Returns:
+            最終処理日時（datetime）、記事がない場合はNone
+        """
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+        
+        c.execute("SELECT processed_date FROM processed_articles ORDER BY processed_date DESC LIMIT 1")
+        result = c.fetchone()
+        
+        conn.close()
+        
+        if result:
+            try:
+                return datetime.fromisoformat(result[0])
+            except ValueError:
+                logger.error(f"Invalid datetime format in database: {result[0]}")
+                return None
+        return None

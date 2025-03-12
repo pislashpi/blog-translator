@@ -1,10 +1,10 @@
 import sys
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Dict, Any
 import os
 
-    # 自作モジュールのインポート
+# 自作モジュールのインポート
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.rss_fetcher import get_new_articles
 from src.translator import TranslatorFactory
@@ -30,9 +30,20 @@ def main():
     # 処理済み記事のデータベースを初期化
     db = ArticleDatabase()
     
-    # RSSフィードから新しい記事を取得
-    logger.info(f"Fetching new articles from the last {config.HOURS_LIMIT} hours")
-    new_articles = get_new_articles(hours_limit=config.HOURS_LIMIT)
+    # 前回の実行時刻を取得
+    last_run_time = db.get_last_run_time()
+    
+    if last_run_time:
+        logger.info(f"Last execution time: {last_run_time.isoformat()}")
+        # 前回の実行時刻から現在までの記事を取得
+        new_articles = get_new_articles(since_date=last_run_time)
+    else:
+        # 初回実行または情報がない場合はデフォルトの時間範囲で実行
+        logger.info(f"No previous execution records. Using default time limit: {config.HOURS_LIMIT} hours")
+        new_articles = get_new_articles(hours_limit=config.HOURS_LIMIT)
+        # 初回実行時は最終実行時刻を記録
+        db.update_last_run_time()
+    
     logger.info(f"Found {len(new_articles)} new articles")
     
     if not new_articles:
@@ -87,7 +98,7 @@ def main():
             # まとめ記事用に保存
             translated_articles.append({
                 "wp_id": wp_post_id,
-                "title": f"{article['title']} ({article['blog_name']})",
+                "title": f"{translated_title} ({article['blog_name']})",
                 "summary": summary
             })
             
@@ -107,6 +118,8 @@ def main():
     else:
         logger.info("No new articles were translated, skipping summary article")
     
+    # 最終実行時刻を更新
+    db.update_last_run_time()
     logger.info("Blog translation process completed")
 
 if __name__ == "__main__":

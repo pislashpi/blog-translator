@@ -1,17 +1,18 @@
 import feedparser
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
 import config
 
 logger = logging.getLogger(__name__)
 
-def get_new_articles(hours_limit: int = config.HOURS_LIMIT) -> List[Dict[str, Any]]:
+def get_new_articles(hours_limit: int = config.HOURS_LIMIT, since_date: Optional[datetime] = None) -> List[Dict[str, Any]]:
     """
-    RSSフィードから指定時間以内に投稿された新しい記事を取得する
+    RSSフィードから指定時間以内または指定日時以降に投稿された新しい記事を取得する
 
     Args:
-        hours_limit: 何時間前までの記事を取得するか
+        hours_limit: 何時間前までの記事を取得するか（since_dateが指定されていない場合に使用）
+        since_date: この日時以降の記事を取得（Noneの場合はhours_limitを使用）
 
     Returns:
         新しい記事のリスト。各記事は辞書形式で、以下のキーを含む:
@@ -21,7 +22,14 @@ def get_new_articles(hours_limit: int = config.HOURS_LIMIT) -> List[Dict[str, An
         - content: 記事の内容
         - blog_name: ブログ名
     """
-    time_limit = datetime.now() - timedelta(hours=hours_limit)
+    # 時間範囲を設定
+    if since_date:
+        time_limit = since_date
+        logger.info(f"Fetching articles since {time_limit.isoformat()}")
+    else:
+        time_limit = datetime.now() - timedelta(hours=hours_limit)
+        logger.info(f"Fetching articles from the last {hours_limit} hours (since {time_limit.isoformat()})")
+
     new_articles = []
 
     for feed_info in config.RSS_FEEDS:
